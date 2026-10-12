@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voucher Kas Keluar - UTS Coding</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --ink:#1b2437; --muted:#667085; --line:#e4e8f0;
+    --brand:#1f4fd8; --ok:#0f9d58; --bad:#d93025; --warn:#b26a00;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 18px 60px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;color:var(--brand);font-weight:700}
+  h1{margin:4px 0 4px;font-size:28px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card p.hint{margin:0 0 14px;color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}
+  input:focus,select:focus{outline:2px solid #c7d5ff;border-color:var(--brand)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:12px;text-align:left;color:var(--muted);padding:6px 6px}
+  td{padding:5px 6px;vertical-align:middle}
+  td.num input{text-align:right}
+  .btn{border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.ghost{background:#eef2ff;color:var(--brand)}
+  .btn.danger{background:#fdecea;color:var(--bad);padding:7px 10px}
+  .btn:disabled{background:#d0d5dd;color:#98a2b3;cursor:not-allowed}
+  .totals{display:flex;gap:18px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+  .tot{font-size:13px;color:var(--muted)}
+  .tot b{display:block;font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .badge{padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px}
+  .badge.ok{background:#e6f6ec;color:var(--ok)}
+  .badge.bad{background:#fdecea;color:var(--bad)}
+  .badge.zero{background:#fff4e0;color:var(--warn)}
+  .msg{margin-top:12px;padding:10px 12px;border-radius:9px;font-size:13px;display:none;white-space:pre-wrap}
+  .msg.ok{display:block;background:#e6f6ec;color:#0b6b3a}
+  .msg.err{display:block;background:#fdecea;color:#a1241b}
+  .banner{background:#fff4e0;color:var(--warn);padding:8px 12px;border-radius:9px;font-size:13px;margin-bottom:14px;display:none}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-all}
+  .st{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#e6f6ec;color:var(--ok)}
+  .st.rev{background:#eef2ff;color:var(--brand)}
+  .small{font-size:12px;color:var(--muted)}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">KEUANGAN</div>
+  <h1>Jurnal Kas Keluar</h1>
+  <p class="sub">Catat pengeluaran kas dan pastikan total debit sama dengan total kredit sebelum menyimpan.</p>
+
+  <div id="offlineBanner" class="banner"></div>
+
+  <div class="card">
+    <h2>Informasi transaksi</h2>
+    <p class="hint">Lengkapi tanggal, nomor bukti, dan keterangan jurnal.</p>
+    <div class="grid">
+      <div><label for="tgl">Tanggal</label><input type="date" id="tgl"></div>
+      <div><label for="ref">Nomor bukti</label><input type="text" id="ref"></div>
+      <div><label for="ket">Keterangan</label><input type="text" id="ket" placeholder="Contoh: Pembayaran biaya operasional"></div>
+      <div><label for="by">Dibuat oleh</label><input type="text" id="by" value="Dandy Rizkiansah"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Baris jurnal</h2>
+    <p class="hint">Setiap baris diisi pada salah satu sisi saja: debit atau kredit.</p>
+    <table>
+      <thead><tr><th style="width:44%">Akun</th><th>Debit (Rp)</th><th>Kredit (Rp)</th><th style="width:60px"></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div style="margin-top:10px"><button class="btn ghost" id="addRow" type="button">+ Tambah baris</button></div>
+
+    <div class="totals">
+      <div class="tot">Total Debit<b id="tD">0</b></div>
+      <div class="tot">Total Kredit<b id="tK">0</b></div>
+      <div class="tot">Selisih<b id="tS">0</b></div>
+      <span id="badge" class="badge zero">Belum ada nominal</span>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn primary" id="submit" type="button" disabled>Submit &amp; Posting</button>
+      <button class="btn ghost" id="reset" type="button">Reset form</button>
+      <span class="small" id="why"></span>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Riwayat jurnal</h2>
+    <p class="hint">Jurnal berstatus POSTED tidak dapat diubah atau dihapus. Koreksi hanya lewat jurnal pembalik (storno).</p>
+    <div style="margin-bottom:10px"><button class="btn ghost" id="reload" type="button">Muat ulang</button></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Bukti</th><th>Tanggal</th><th>Keterangan</th><th>Dibuat oleh</th><th>Status</th><th>Hash (SHA-256)</th><th></th></tr></thead>
+        <tbody id="hist"></tbody>
+      </table>
+    </div>
+    <div id="hmsg" class="msg"></div>
+  </div>
+</div>
+
+<script>
+// ================== KONFIGURASI SUPABASE ==================
+const SUPABASE_URL = "https://uvgactsmassakkonjqjh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_IE5uwJmz-JtmzUboaRZfYQ_88Lf7MrZ"; // publishable key (aman di frontend)
+// ===========================================================
+
+const REST = SUPABASE_URL + "/rest/v1";
+const HEAD = { "apikey": SUPABASE_KEY, "Content-Type": "application/json" };
+
+// Cadangan agar UI tetap bisa didemokan bila database belum siap
+const FALLBACK_COA = [
+  {account_id:1,  account_code:"1-1100", account_name:"Kas"},
+  {account_id:2,  account_code:"1-1200", account_name:"Bank"},
+  {account_id:3,  account_code:"1-1300", account_name:"Persediaan Barang Dagang"},
+  {account_id:9,  account_code:"6-1000", account_name:"Beban Operasional"},
+  {account_id:10, account_code:"6-2000", account_name:"Beban Listrik, Air, dan Telepon"},
+  {account_id:11, account_code:"6-3000", account_name:"Beban Gaji"}
+];
+
+let COA = [];
+let offline = false;
+
+const $ = id => document.getElementById(id);
+const rupiah = n => new Intl.NumberFormat("id-ID").format(n);
+const toNum = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) && n > 0 ? n : 0; };
+const round2 = n => Math.round(n * 100) / 100;
+
+function genRef(){
+  const d = new Date(), p = x => String(x).padStart(2, "0");
+  return `BKK-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+async function api(path, opts = {}){
+  const res = await fetch(REST + path, { headers: HEAD, ...opts });
+  const text = await res.text();
+  let data = null; try { data = text ? JSON.parse(text) : null; } catch(e){ data = text; }
+  if(!res.ok){
+    const m = (data && (data.message || data.hint || data.details)) || text || res.statusText;
+    throw new Error(m);
+  }
+  return data;
+}
+
+function showMsg(el, kind, text){ el.className = "msg " + kind; el.textContent = text; }
+function clearMsg(el){ el.className = "msg"; el.textContent = ""; }
+
+// ---------- Baris jurnal ----------
+function accountOptions(){
+  return '<option value="">-- pilih akun --</option>' +
+    COA.map(a => `<option value="${a.account_id}">${a.account_code} - ${a.account_name}</option>`).join("");
+}
+function addRow(sel = "", d = "", k = ""){
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><select class="acc">${accountOptions()}</select></td>
+    <td class="num"><input class="deb" type="number" min="0" step="0.01" placeholder="0"></td>
+    <td class="num"><input class="kre" type="number" min="0" step="0.01" placeholder="0"></td>
+    <td><button type="button" class="btn danger rm" title="Hapus baris">Hapus</button></td>`;
+  tr.querySelector(".acc").value = sel;
+  tr.querySelector(".deb").value = d;
+  tr.querySelector(".kre").value = k;
+  $("rows").appendChild(tr);
+  recalc();
+}
+
+function readRows(){
+  return [...$("rows").querySelectorAll("tr")].map(tr => ({
+    account_id: tr.querySelector(".acc").value,
+    debit:  toNum(tr.querySelector(".deb").value),
+    credit: toNum(tr.querySelector(".kre").value),
+    tr
+  }));
+}
+
+// ---------- Kalkulasi langsung & validasi zero-discrepancy ----------
+function recalc(){
+  const rows = readRows();
+  let D = 0, K = 0, problem = "";
+  rows.forEach(r => { D += r.debit; K += r.credit; });
+  D = round2(D); K = round2(K);
+  const diff = round2(D - K);
+
+  $("tD").textContent = rupiah(D);
+  $("tK").textContent = rupiah(K);
+  $("tS").textContent = rupiah(Math.abs(diff));
+
+  const b = $("badge");
+  if(D === 0 && K === 0){ b.className = "badge zero"; b.textContent = "Belum ada nominal"; }
+  else if(diff === 0){ b.className = "badge ok"; b.textContent = "SEIMBANG"; }
+  else { b.className = "badge bad"; b.textContent = diff > 0 ? "Kurang kredit " + rupiah(diff) : "Kurang debit " + rupiah(-diff); }
+
+  if(rows.length < 2) problem = "Minimal 2 baris jurnal.";
+  else if(D === 0 || K === 0 || diff !== 0) problem = "Total debit harus sama dengan total kredit dan tidak nol.";
+  else if(rows.some(r => !r.account_id)) problem = "Semua baris harus memiliki akun.";
+  else if(rows.some(r => r.debit > 0 && r.credit > 0)) problem = "Satu baris hanya boleh debit atau kredit.";
+  else if(rows.some(r => r.debit === 0 && r.credit === 0)) problem = "Hapus baris yang nominalnya nol.";
+  else if(!$("tgl").value) problem = "Tanggal wajib diisi.";
+  else if(!$("ref").value.trim()) problem = "Nomor bukti wajib diisi.";
+
+  $("submit").disabled = problem !== "";
+  $("why").textContent = problem;
+  return problem === "";
+}
+
+// ---------- Submit via RPC (validasi final di database) ----------
+async function submitVoucher(){
+  if(!recalc()) return;
+  clearMsg($("msg"));
+  const lines = readRows().map(r => ({ account_id: Number(r.account_id), debit: r.debit, credit: r.credit }));
+  $("submit").disabled = true;
+  try{
+    if(offline) throw new Error("Mode demo: database belum terhubung, data tidak dikirim.");
+    const out = await api("/rpc/post_journal", {
+      method: "POST",
+      body: JSON.stringify({
+        p_date: $("tgl").value, p_reference: $("ref").value.trim(),
+        p_description: $("ket").value.trim(), p_created_by: $("by").value.trim(), p_lines: lines
+      })
+    });
+    showMsg($("msg"), "ok", `Berhasil diposting.\nBukti: ${out.reference_number}\nHash: ${out.hash_checksum}`);
+    resetForm(false);
+    loadHistory();
+  }catch(e){
+    showMsg($("msg"), "err", "Ditolak: " + e.message);
+    recalc();
+  }
+}
+
+function resetForm(clearMessage = true){
+  $("rows").innerHTML = "";
+  $("tgl").valueAsDate = new Date();
+  $("ref").value = genRef();
+  $("ket").value = "";
+  addRow(); addRow();
+  if(clearMessage) clearMsg($("msg"));
+}
+
+// ---------- Riwayat, storno, verifikasi hash ----------
+async function loadHistory(){
+  const tb = $("hist");
+  if(offline){ tb.innerHTML = '<tr><td colspan="7" class="small">Mode demo: riwayat tidak tersedia.</td></tr>'; return; }
+  try{
+    const rows = await api("/journal_headers?select=id,reference_number,transaction_date,description,created_by,status_posting,hash_checksum,reversal_of&order=id.desc&limit=15");
+    const reversed = new Set(rows.filter(r => r.reversal_of).map(r => r.reversal_of));
+    tb.innerHTML = rows.map(r => `
+      <tr>
+        <td>${esc(r.reference_number)}</td>
+        <td>${r.transaction_date}</td>
+        <td>${esc(r.description || "")}</td>
+        <td>${esc(r.created_by)}</td>
+        <td><span class="st ${r.reversal_of ? "rev" : ""}">${r.status_posting}${r.reversal_of ? " (storno)" : ""}</span></td>
+        <td class="mono">${r.hash_checksum ? r.hash_checksum.slice(0, 16) + "…" : "-"}</td>
+        <td><div class="actions">
+          <button class="btn ghost" data-verify="${r.id}" type="button">Verifikasi</button>
+          ${(!r.reversal_of && !reversed.has(r.id) && r.status_posting === "POSTED") ? `<button class="btn danger" data-storno="${r.id}" type="button">Storno</button>` : ""}
+        </div></td>
+      </tr>`).join("") || '<tr><td colspan="7" class="small">Belum ada jurnal.</td></tr>';
+  }catch(e){
+    tb.innerHTML = `<tr><td colspan="7" class="small">Gagal memuat riwayat: ${esc(e.message)}</td></tr>`;
+  }
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function doVerify(id){
+  clearMsg($("hmsg"));
+  try{
+    const out = await api("/rpc/verify_journal_integrity", { method:"POST", body: JSON.stringify({ p_header_id: Number(id) }) });
+    showMsg($("hmsg"), out.valid ? "ok" : "err",
+      (out.valid ? "Integritas VALID: hash tersimpan sama dengan hash hitung ulang." : "PERINGATAN: hash tidak cocok, data kemungkinan dimanipulasi!") +
+      `\nTersimpan : ${out.stored}\nHitung ulang: ${out.recomputed}`);
+  }catch(e){ showMsg($("hmsg"), "err", e.message); }
+}
+async function doStorno(id){
+  if(!confirm("Buat jurnal pembalik (storno) untuk jurnal ini?")) return;
+  clearMsg($("hmsg"));
+  try{
+    const out = await api("/rpc/reverse_journal", { method:"POST", body: JSON.stringify({ p_header_id: Number(id), p_created_by: $("by").value.trim() }) });
+    showMsg($("hmsg"), "ok", `Jurnal pembalik dibuat: ${out.reference_number}`);
+    loadHistory();
+  }catch(e){ showMsg($("hmsg"), "err", "Storno gagal: " + e.message); }
+}
+
+// ---------- Inisialisasi ----------
+async function init(){
+  try{
+    COA = await api("/chart_of_accounts?select=account_id,account_code,account_name&order=account_code");
+    if(!COA.length) throw new Error("COA kosong");
+  }catch(e){
+    offline = true; COA = FALLBACK_COA;
+    const b = $("offlineBanner");
+    b.style.display = "block";
+    b.textContent = "Mode demo: tidak bisa membaca database Supabase (" + e.message + "). Jalankan file SQL 01-03 lebih dulu.";
+  }
+  resetForm();
+  loadHistory();
+}
+
+$("addRow").addEventListener("click", () => addRow());
+$("reset").addEventListener("click", () => resetForm());
+$("submit").addEventListener("click", submitVoucher);
+$("reload").addEventListener("click", loadHistory);
+$("rows").addEventListener("input", recalc);
+$("rows").addEventListener("change", recalc);
+$("rows").addEventListener("click", e => {
+  if(e.target.classList.contains("rm")){ e.target.closest("tr").remove(); recalc(); }
+});
+$("tgl").addEventListener("change", recalc);
+$("ref").addEventListener("input", recalc);
+$("hist").addEventListener("click", e => {
+  const v = e.target.dataset.verify, s = e.target.dataset.storno;
+  if(v) doVerify(v); if(s) doStorno(s);
+});
+init();
+</script>
+</body>
+</html>
